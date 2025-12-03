@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import LocationInput from "@/components/LocationInput";
 import RideTypeSelector, { RideType } from "@/components/RideTypeSelector";
@@ -148,6 +149,15 @@ const Index = () => {
                   <p className="text-sm text-muted-foreground">{item.description}</p>
                 </div>
               ))}
+            </div>
+            <div className="text-center mt-8 opacity-0 animate-fade-in" style={{ animationDelay: "1100ms" }}>
+              <Link
+                to="/how-it-works"
+                className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                Learn more about how it works
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </section>
         </div>
