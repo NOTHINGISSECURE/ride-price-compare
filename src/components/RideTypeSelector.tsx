@@ -1,7 +1,7 @@
-import { Car, Bike, Truck } from "lucide-react";
+import { Car, Bike, Truck, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type RideType = "auto" | "mini" | "sedan" | "suv";
+export type RideType = "bike" | "auto" | "mini" | "sedan" | "suv";
 
 interface RideTypeSelectorProps {
   selected: RideType;
@@ -9,6 +9,7 @@ interface RideTypeSelectorProps {
 }
 
 const rideTypes: { id: RideType; label: string; icon: React.ReactNode }[] = [
+  { id: "bike", label: "Bike", icon: <Zap className="w-5 h-5" /> },
   { id: "auto", label: "Auto", icon: <Bike className="w-5 h-5" /> },
   { id: "mini", label: "Mini", icon: <Car className="w-5 h-5" /> },
   { id: "sedan", label: "Sedan", icon: <Car className="w-5 h-5" /> },

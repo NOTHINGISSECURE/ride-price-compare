@@ -1,4 +1,5 @@
 import { MapPin, Menu } from "lucide-react";
+import ProfileDropdown from "./ProfileDropdown";
 
 const Header = () => {
   return (
@@ -20,9 +21,12 @@ const Header = () => {
           <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About</a>
         </nav>
 
-        <button className="md:hidden p-2 rounded-lg bg-secondary/50 text-foreground">
-          <Menu className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <ProfileDropdown />
+          <button className="md:hidden p-2 rounded-lg bg-secondary/50 text-foreground">
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     </header>
   );
