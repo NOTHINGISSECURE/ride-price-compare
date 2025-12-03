@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
-  const [rideType, setRideType] = useState<RideType>("mini");
+  const [rideType, setRideType] = useState<RideType>("bike");
 
   const { prices, etas, surges, isLoading, cheapestProvider, refresh } =
     usePriceComparison(pickup, destination, rideType);

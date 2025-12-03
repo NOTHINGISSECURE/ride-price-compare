@@ -22,6 +22,7 @@ interface SurgeData {
 // Mock price generation based on ride type
 const getBasePrices = (rideType: RideType): PriceData => {
   const basePrices = {
+    bike: { ola: 45, uber: 55, rapido: 35 },
     auto: { ola: 85, uber: 95, rapido: 75 },
     mini: { ola: 145, uber: 155, rapido: 135 },
     sedan: { ola: 235, uber: 245, rapido: 225 },
