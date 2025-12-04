@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { User, LogIn, LogOut, Check, Link2, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConnectedApp {
   id: "ola" | "uber" | "rapido";
@@ -12,30 +15,110 @@ interface ConnectedApp {
   color: string;
 }
 
+const defaultApps: ConnectedApp[] = [
+  { id: "ola", name: "Ola", logo: "🟡", connected: false, color: "ola" },
+  { id: "uber", name: "Uber", logo: "⬛", connected: false, color: "uber" },
+  { id: "rapido", name: "Rapido", logo: "🟢", connected: false, color: "rapido" },
+];
+
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>([
-    { id: "ola", name: "Ola", logo: "🟡", connected: false, color: "ola" },
-    { id: "uber", name: "Uber", logo: "⬛", connected: false, color: "uber" },
-    { id: "rapido", name: "Rapido", logo: "🟢", connected: false, color: "rapido" },
-  ]);
+  const [connectedApps, setConnectedApps] = useState<ConnectedApp[]>(defaultApps);
+  const [loading, setLoading] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
-  const handleConnectApp = (appId: string) => {
+  // Fetch connected apps from database when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchConnectedApps();
+    } else {
+      setConnectedApps(defaultApps);
+    }
+  }, [user]);
+
+  const fetchConnectedApps = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("connected_apps")
+      .select("*")
+      .eq("user_id", user.id);
+
+    if (!error && data) {
+      setConnectedApps(
+        defaultApps.map((app) => {
+          const dbApp = data.find((d) => d.app_name === app.id);
+          return dbApp ? { ...app, connected: dbApp.is_connected } : app;
+        })
+      );
+    }
+  };
+
+  const handleConnectApp = async (appId: string) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to connect your accounts.",
+      });
+      navigate("/auth");
+      return;
+    }
+
+    setLoading(true);
+    const app = connectedApps.find((a) => a.id === appId);
+    const newConnectedState = !app?.connected;
+
+    // Update local state optimistically
     setConnectedApps((prev) =>
-      prev.map((app) =>
-        app.id === appId ? { ...app, connected: !app.connected } : app
+      prev.map((a) =>
+        a.id === appId ? { ...a, connected: newConnectedState } : a
       )
     );
-    
-    const app = connectedApps.find((a) => a.id === appId);
-    if (app) {
+
+    // Upsert to database
+    const { error } = await supabase
+      .from("connected_apps")
+      .upsert({
+        user_id: user.id,
+        app_name: appId,
+        is_connected: newConnectedState,
+        connected_at: newConnectedState ? new Date().toISOString() : null,
+      }, {
+        onConflict: "user_id,app_name",
+      });
+
+    if (error) {
+      // Revert on error
+      setConnectedApps((prev) =>
+        prev.map((a) =>
+          a.id === appId ? { ...a, connected: !newConnectedState } : a
+        )
+      );
       toast({
-        title: app.connected ? `${app.name} disconnected` : `${app.name} connected`,
-        description: app.connected 
-          ? `Your ${app.name} account has been disconnected.`
-          : `Your ${app.name} account is now connected. You can book rides directly!`,
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update connection. Please try again.",
+      });
+    } else if (app) {
+      toast({
+        title: newConnectedState ? `${app.name} connected` : `${app.name} disconnected`,
+        description: newConnectedState
+          ? `Your ${app.name} account is now connected. You can book rides directly!`
+          : `Your ${app.name} account has been disconnected.`,
       });
     }
+
+    setLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsOpen(false);
+    toast({
+      title: "Signed out",
+      description: "You have been signed out successfully.",
+    });
   };
 
   const connectedCount = connectedApps.filter((app) => app.connected).length;
@@ -53,7 +136,9 @@ const ProfileDropdown = () => {
         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
           <User className="w-4 h-4 text-primary" />
         </div>
-        <span className="hidden sm:block text-sm font-medium text-foreground">Profile</span>
+        <span className="hidden sm:block text-sm font-medium text-foreground">
+          {user ? "Account" : "Profile"}
+        </span>
         {connectedCount > 0 && (
           <span className="hidden sm:flex w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs items-center justify-center font-semibold">
             {connectedCount}
@@ -83,8 +168,12 @@ const ProfileDropdown = () => {
                     <User className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">Guest User</p>
-                    <p className="text-xs text-muted-foreground">Connect apps to book rides</p>
+                    <p className="font-semibold text-foreground">
+                      {user ? user.email?.split("@")[0] : "Guest User"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user ? user.email : "Sign in to save preferences"}
+                    </p>
                   </div>
                 </div>
                 <button 
@@ -106,11 +195,13 @@ const ProfileDropdown = () => {
                   <button
                     key={app.id}
                     onClick={() => handleConnectApp(app.id)}
+                    disabled={loading}
                     className={cn(
                       "w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-300",
                       app.connected
                         ? "bg-primary/5 border-primary/30"
-                        : "bg-secondary/30 border-border/30 hover:border-primary/20"
+                        : "bg-secondary/30 border-border/30 hover:border-primary/20",
+                      loading && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -152,20 +243,30 @@ const ProfileDropdown = () => {
                   : `${connectedCount} app${connectedCount > 1 ? 's' : ''} connected`
                 }
               </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full border-border/50 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  toast({
-                    title: "Sign in required",
-                    description: "Create an account to save your preferences and connected apps.",
-                  });
-                }}
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign in to save
-              </Button>
+              {user ? (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full border-border/50 text-muted-foreground hover:text-foreground"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign out
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full border-border/50 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate("/auth");
+                  }}
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign in to save
+                </Button>
+              )}
             </div>
           </div>
         </>
